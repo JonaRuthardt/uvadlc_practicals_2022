@@ -49,6 +49,20 @@ def confusion_matrix(predictions, targets):
     # PUT YOUR CODE HERE  #
     #######################
 
+    # consider instance with maximum value as prediction of class
+    predictions_indices = np.argmax(predictions, axis=1)
+    targets_indices = targets
+    #print(predictions_indices, predictions_indices.shape)
+    #print(targets_indices, targets_indices.shape)
+
+    #TODO verify correctness
+    n_classes = predictions.shape[1]
+    conf_mat = np.zeros((n_classes, n_classes))
+    
+    for pred_idx, target_idx in zip(predictions_indices, targets_indices):
+      conf_mat[pred_idx, target_idx] += 1
+
+
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -69,6 +83,34 @@ def confusion_matrix_to_metrics(confusion_matrix, beta=1.):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
+
+    confusion_matrix = confusion_matrix.astype(np.float32)
+    accuracy = np.diag(confusion_matrix).sum() / confusion_matrix.sum()
+
+    n_classes = confusion_matrix.shape[0]
+    precision = []
+    recall = []
+    f1_beta = []
+
+    for class_idx in range(n_classes):
+      TP = confusion_matrix[class_idx, class_idx]
+      FN = confusion_matrix[:, class_idx].sum() - TP
+      FP = confusion_matrix[class_idx, :].sum() - TP
+
+      prec = TP / (TP + FP) if TP > 0.0 else 0.0
+      precision.append(prec)
+      rec = TP / (TP + FN) if TP > 0.0 else 0.0
+      recall.append(rec)
+      f1_b = ((1.0 + beta**2) * prec * rec / (beta**2 * prec + rec)) if prec * rec > 0.0 else 0.0
+      f1_beta.append(f1_b)
+
+
+    metrics = {
+      "accuracy": accuracy,
+      "precision": precision,
+      "recall": recall,
+      "f1_beta": f1_beta,
+    }
 
     #######################
     # END OF YOUR CODE    #
@@ -96,6 +138,8 @@ def evaluate_model(model, data_loader, num_classes=10):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
+
+    #model 
 
     #######################
     # END OF YOUR CODE    #
@@ -150,10 +194,64 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
     #######################
 
     # TODO: Initialize model and loss module
-    model = ...
-    loss_module = ...
+    n_inputs = 32 * 32 * 3
+    model = MLP(n_inputs=n_inputs,n_hidden=hidden_dims, n_classes=10)
+    loss_module = CrossEntropyModule()
     # TODO: Training loop including validation
-    val_accuracies = ...
+
+    best_model = None
+    val_accuracies = []
+
+    for epoch in range(epochs):
+      training_losses = []
+
+      print(f"Training epoch {epoch}")
+      for data, labels in cifar10_loader["train"]:
+        data = data.reshape(batch_size, -1) # flatten array
+        # Forward training pass
+        predictions = model.forward(data)
+        #print(predictions)
+        loss_training = loss_module.forward(predictions, labels)
+        training_losses.append(loss_training)
+        
+        # Perform backprop and update weights using mini-batch SGD
+        loss_derivative = loss_module.backward(predictions, labels)
+        model.backward(loss_derivative)
+        for layer in model.layers:
+          #print(layer.grads["weight"].sum(), layer.grads["bias"].sum())
+          layer.params["weight"] = layer.params["weight"] - lr * layer.grads["weight"]
+          layer.params["bias"] = layer.params["bias"] - lr * layer.grads["bias"]
+      
+
+      print(f"Validation epoch {epoch}")
+      val_accuracies_epoch = []
+      validation_losses = []
+      batch_size_val_list = []
+      for data, labels in cifar10_loader["validation"]:
+        batch_size_val = data.shape[0]
+        batch_size_val_list.append(batch_size_val) 
+        data = data.reshape(batch_size_val, -1) # flatten array
+        # validate model on validation data
+        predictions = model.forward(data)
+        loss_validation = loss_module.forward(predictions, labels)
+        validation_losses.append(loss_validation / batch_size_val)
+
+        # evaluate results
+        conf_matrix = confusion_matrix(predictions, labels)
+        metrics = confusion_matrix_to_metrics(conf_matrix) 
+        val_accuracies_epoch.append(metrics["accuracy"])
+      val_accuracy = np.average(val_accuracies_epoch, weights=batch_size_val_list)
+      val_accuracies.append(val_accuracy)
+      print(f"Validation accuracy after epoch {epoch}: {val_accuracy}")
+      if val_accuracy == min(val_accuracies):
+        # save best model
+        best_model = deepcopy(model)
+        best_model.clear_cache()
+
+      print(f"Training loss after epoch {epoch}: {np.mean(loss_training)}")
+      #print(f"Validation accuracy after epoch {epoch}: {val_accuracy}\n")
+
+
     # TODO: Test best model
     test_accuracy = ...
     # TODO: Add any information you might want to save for plotting
