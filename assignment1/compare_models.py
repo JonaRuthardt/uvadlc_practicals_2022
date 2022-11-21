@@ -26,6 +26,8 @@ import os
 from mlp_pytorch import MLP
 import cifar10_utils
 import train_mlp_pytorch
+import json
+import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -52,8 +54,35 @@ def train_models(results_filename):
     # PUT YOUR CODE HERE  #
     #######################
     # TODO: Run all hyperparameter configurations as requested
-    results = None
-    # TODO: Save all results in a file with the name 'results_filename'. This can e.g. by a json file
+
+    default_hyperparameters = {
+        "hidden_dims": [128],
+        "use_batch_norm": False,
+        "lr": 0.1,
+        "batch_size": 128,
+        "epochs": 20,
+        "seed": 42,
+        "data_dir": "data/",
+    }
+
+    results = {}
+
+    for architecture in [[128], [256, 128], [512, 256, 128]]:
+
+        default_hyperparameters["hidden_dims"] = architecture
+
+        model, val_accuracies, test_accuracy, logging_info = train_mlp_pytorch.train(**default_hyperparameters)
+
+        logging_info["val_accuracies"] = val_accuracies
+        logging_info["test_accuracy"] = test_accuracy
+
+        logging_info = {k:np.array(v).astype(float).tolist() if isinstance(v, np.ndarray) or isinstance(v, list) else v for k,v in logging_info.items()}
+
+        results[str(architecture)] = logging_info
+
+    with open(results_filename, 'w') as file:
+        file.write(json.dumps(results))
+
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -75,7 +104,38 @@ def plot_results(results_filename):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    pass
+    with open(results_filename, 'r') as file:
+        result_dict = json.load(file)
+
+    fig, ax = plt.subplots(2,1, figsize=(10,10), dpi=120)
+    epochs = np.arange(1, 20 + 1)
+    ax[0].set_xticks(epochs)
+    ax[1].set_xticks(epochs)
+    ax[0].set_xlabel("Epoch")
+    ax[1].set_xlabel("Epoch")
+    ax[0].set_ylabel("Training Loss")
+    ax[1].set_ylabel("Validation Accuracy")
+
+    configurations = []
+    for hyperparameter, config_results in result_dict.items():
+        configurations.append(hyperparameter)
+        configurations.append(None)
+
+        val_accuracies = [np.mean(a) for a in config_results["val_accuracies"]]
+        training_losses = [np.mean(l) for l in config_results["training_losses"]]
+
+        p1 = ax[0].plot(epochs, training_losses)
+        ax[0].scatter(epochs, training_losses)
+        p3 = ax[1].plot(epochs, val_accuracies)
+        ax[1].scatter(epochs, val_accuracies)
+        
+    ax[0].legend(configurations)
+    ax[1].legend(configurations)
+
+        
+
+    plt.savefig("architecture_plot.png")
+
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -83,7 +143,7 @@ def plot_results(results_filename):
 
 if __name__ == '__main__':
     # Feel free to change the code below as you need it.
-    FILENAME = 'results.txt' 
+    FILENAME = 'results_question_2-5.txt' 
     if not os.path.isfile(FILENAME):
         train_models(FILENAME)
     plot_results(FILENAME)

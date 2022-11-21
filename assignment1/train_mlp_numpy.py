@@ -52,8 +52,6 @@ def confusion_matrix(predictions, targets):
     # consider instance with maximum value as prediction of class
     predictions_indices = np.argmax(predictions, axis=1)
     targets_indices = targets
-    #print(predictions_indices, predictions_indices.shape)
-    #print(targets_indices, targets_indices.shape)
 
     #TODO verify correctness
     n_classes = predictions.shape[1]
@@ -139,7 +137,21 @@ def evaluate_model(model, data_loader, num_classes=10):
     # PUT YOUR CODE HERE  #
     #######################
 
-    #model 
+    metrics_list = []
+    batch_size_test_list = []
+    for data, labels in data_loader["test"]:
+      batch_size_test = data.shape[0]
+      batch_size_test_list.append(batch_size_test) 
+      data = data.reshape(batch_size_test, -1) # flatten array
+      # validate model on validation data
+      predictions = model.forward(data)
+
+      # evaluate results
+      conf_matrix = confusion_matrix(predictions, labels)
+      metrics = confusion_matrix_to_metrics(conf_matrix) 
+      metrics_list.append(metrics)
+    
+    metrics = {k: np.average([np.mean(m[k]) for m in metrics_list], weights=batch_size_test_list) for k in metrics.keys()}
 
     #######################
     # END OF YOUR CODE    #
@@ -193,37 +205,34 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
     # PUT YOUR CODE HERE  #
     #######################
 
-    # TODO: Initialize model and loss module
     n_inputs = 32 * 32 * 3
     model = MLP(n_inputs=n_inputs,n_hidden=hidden_dims, n_classes=10)
     loss_module = CrossEntropyModule()
-    # TODO: Training loop including validation
 
     best_model = None
     val_accuracies = []
+    training_losses_total = []
+    validation_losses_total = []
 
     for epoch in range(epochs):
       training_losses = []
 
-      print(f"Training epoch {epoch}")
       for data, labels in cifar10_loader["train"]:
         data = data.reshape(batch_size, -1) # flatten array
         # Forward training pass
         predictions = model.forward(data)
         #print(predictions)
         loss_training = loss_module.forward(predictions, labels)
+        #print(loss_training)
         training_losses.append(loss_training)
         
         # Perform backprop and update weights using mini-batch SGD
         loss_derivative = loss_module.backward(predictions, labels)
         model.backward(loss_derivative)
-        for layer in model.layers:
-          #print(layer.grads["weight"].sum(), layer.grads["bias"].sum())
+        for layer in model.linear_layers:
           layer.params["weight"] = layer.params["weight"] - lr * layer.grads["weight"]
           layer.params["bias"] = layer.params["bias"] - lr * layer.grads["bias"]
       
-
-      print(f"Validation epoch {epoch}")
       val_accuracies_epoch = []
       validation_losses = []
       batch_size_val_list = []
@@ -234,7 +243,7 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
         # validate model on validation data
         predictions = model.forward(data)
         loss_validation = loss_module.forward(predictions, labels)
-        validation_losses.append(loss_validation / batch_size_val)
+        validation_losses.append(loss_validation)
 
         # evaluate results
         conf_matrix = confusion_matrix(predictions, labels)
@@ -242,25 +251,32 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
         val_accuracies_epoch.append(metrics["accuracy"])
       val_accuracy = np.average(val_accuracies_epoch, weights=batch_size_val_list)
       val_accuracies.append(val_accuracy)
-      print(f"Validation accuracy after epoch {epoch}: {val_accuracy}")
-      if val_accuracy == min(val_accuracies):
+      if val_accuracy == max(val_accuracies):
         # save best model
         best_model = deepcopy(model)
         best_model.clear_cache()
 
-      print(f"Training loss after epoch {epoch}: {np.mean(loss_training)}")
-      #print(f"Validation accuracy after epoch {epoch}: {val_accuracy}\n")
+      training_losses_total.append(np.mean(training_losses))
+      validation_losses_total.append(np.average(validation_losses, weights=batch_size_val_list))
+      print(f"Epoch {epoch} done; training loss: {round(np.mean(training_losses),3)}; validation loss: {round(np.average(validation_losses, weights=batch_size_val_list),3)}; validation accuracy: {round(val_accuracy,3)}")
 
 
     # TODO: Test best model
-    test_accuracy = ...
+    model = best_model
+    metrics = evaluate_model(model, cifar10_loader)
+    test_accuracy = metrics['accuracy']
+    print(f"Accuracy of best model on test set: {test_accuracy}")
+
     # TODO: Add any information you might want to save for plotting
-    logging_info = ...
+    logging_info = {
+      "training_losses_total": training_losses_total,
+      "validation_losses_total": validation_losses_total,
+    }
     #######################
     # END OF YOUR CODE    #
     #######################
 
-    return model, val_accuracies, test_accuracy, logging_dict
+    return model, val_accuracies, test_accuracy, logging_info
 
 
 if __name__ == '__main__':
@@ -288,6 +304,33 @@ if __name__ == '__main__':
     args = parser.parse_args()
     kwargs = vars(args)
 
-    train(**kwargs)
+    model, val_accuracies, test_accuracy, logging_info = train(**kwargs)
     # Feel free to add any additional functions, such as plotting of the loss curve here
+
+    plot_loss_accuracy_curves = False
+
+    if plot_loss_accuracy_curves:
+      # Plot results
+      import matplotlib.pyplot as plt
+
+      fig, ax1 = plt.subplots(1,1, figsize=(10,6), dpi=120)
+      ax2 = ax1.twinx()
+      epochs = np.arange(1, len(val_accuracies) + 1)
+
+      p1 = ax1.plot(epochs, logging_info["training_losses_total"], label="Training Loss", c="b")
+      ax1.scatter(epochs, logging_info["training_losses_total"], c="b")
+      p2 = ax1.plot(epochs, logging_info["validation_losses_total"], label="Validation Loss", c="g")
+      ax1.scatter(epochs, logging_info["validation_losses_total"], c="g")
+      p3 = ax2.plot(epochs, val_accuracies, label="Validation Accuracy", c="r")
+      ax2.scatter(epochs, val_accuracies, c="r")
+      ax1.set_xticks(epochs)
+
+      plots = p1 + p2 + p3
+      ax1.legend(plots, [p.get_label() for p in plots], loc=3)
+
+      ax1.set_xlabel("Epoch")
+      ax1.set_ylabel("Loss")
+      ax2.set_ylabel("Accuracy")
+
+      plt.savefig("numpy_plot.png")
     

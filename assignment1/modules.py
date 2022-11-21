@@ -48,18 +48,15 @@ class LinearModule(object):
 
         self.cached_input = None
         self.input_layer = input_layer
+        std = np.sqrt(1/in_features) if input_layer else np.sqrt(2/in_features)
         self.params = {
-          "weight": np.random.normal(0.0, 2/in_features, size=(in_features, out_features)),
+          "weight": np.random.normal(0.0, std, size=(in_features, out_features)),
           "bias": np.zeros(out_features),
         }
         self.grads = {
           "weight": np.zeros((in_features, out_features)),
           "bias": np.zeros(out_features),
         }
-
-        #self.b = np.zeros(out_features)
-        #self.B = np.tile(self.b, (out_features, 1))
-        #self.W_T = np.zeros((in_features, out_features)) 
 
         #######################
         # END OF YOUR CODE    #
@@ -142,7 +139,6 @@ class ELUModule(object):
     """
     ELU activation module.
     """
-    cached_input = []
 
     def forward(self, x):
         """
@@ -163,14 +159,9 @@ class ELUModule(object):
         # PUT YOUR CODE HERE  #
         #######################
                 
-        self.cached_input.append(x)
+        self.cached_input = x
         
-        x_g0 = x.copy()
-        x_g0[x_g0 <= 0.0] = 0.0
-        x_se0 = x.copy()
-        x_se0[x_se0 > 0.0] = 0.0
-        out = x_g0 + (np.exp(x_se0) - 1)
-        #out = x * (x > 0.0) + (np.exp(x * (x <= 0.0)) - 1) 
+        out = np.where(x > 0, x, np.exp(x) - 1)
 
         #######################
         # END OF YOUR CODE    #
@@ -193,13 +184,12 @@ class ELUModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        x = self.cached_input.pop(-1)
-        exp = np.exp(x)
-        exp[x > 0.0] = 0.0
-        dx = 1.0 * (x > 0.0) + exp
-        dx *= dout
-        
-        #raise ValueError(f"{dx.shape}; {dx}")
+
+        x = self.cached_input
+        ones = np.ones_like(x)
+
+        dx = np.where(x>0, ones, np.exp(x)) * dout
+
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -248,7 +238,6 @@ class SoftMaxModule(object):
 
         b = np.max(x, axis=1)
         exp_list = np.exp(x.T - b).T
-        #out = exp_list / np.tile(np.sum(exp_list, axis=1), (x.shape[1], 1)).T
         out = exp_list / np.sum(exp_list, axis=1).reshape(exp_list.shape[0],1)
 
         self.cached_output = out
@@ -354,6 +343,7 @@ class CrossEntropyModule(object):
         y_onehot = np.eye(x.shape[1])[y] # convert into one-hot encoding somilar to x
 
         dx = - y_onehot / (x.shape[0] * x)
+
         #######################
         # END OF YOUR CODE    #
         #######################

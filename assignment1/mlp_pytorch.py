@@ -59,7 +59,29 @@ class MLP(nn.Module):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        import numpy as np
+        super().__init__()
+        
+        self.layers = []
+        for idx, (input_dim, output_dim) in enumerate(zip([n_inputs] + n_hidden, n_hidden + [n_classes])):
+          linear_layer = nn.Linear(input_dim, output_dim)
+          print("Linear Layer added")
+          linear_layer.bias.data.fill_(0)
+          if idx == 0:
+            linear_layer.weight.data.normal_(0, 1/np.sqrt(input_dim))
+          else:
+            linear_layer.weight.data.normal_(0, np.sqrt(2/input_dim))
+          self.layers.append(linear_layer)
+          if idx < len(n_hidden):
+            if use_batch_norm:
+              print("Batch-Norm added")
+              self.layers.append(nn.BatchNorm1d(output_dim))
+            print("ELU added")
+            self.layers.append(nn.ELU(alpha=1.0, inplace=False))
+        
+        self.layers = nn.Sequential(*self.layers)
+          
+        
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -81,6 +103,10 @@ class MLP(nn.Module):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
+
+        out = x
+        for layer in self.layers:
+          out = layer.forward(out)
 
         #######################
         # END OF YOUR CODE    #

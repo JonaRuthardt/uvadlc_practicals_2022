@@ -21,6 +21,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data as data
 import torchvision.models as models
+from torch.utils.data import DataLoader
 
 from cifar100_utils import get_train_validation_set, get_test_set
 
@@ -52,10 +53,13 @@ def get_model(num_classes=100):
     #######################
 
     # Get the pretrained ResNet18 model on ImageNet from torchvision.models
-    pass
+    model = models.resnet18(weights="IMAGENET1K_V1")
+    for param in model.parameters():
+        param.requires_grad = False
 
     # Randomly initialize and modify the model's last layer for CIFAR100.
-    pass
+    model.fc = nn.LazyLinear(num_classes)
+    #TODO correct approach to do it like that?
 
     #######################
     # END OF YOUR CODE    #
@@ -85,16 +89,49 @@ def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device
     #######################
 
     # Load the datasets
-    pass
+    train_dataset, val_dataset = get_train_validation_set(data_dir, augmentation_name=augmentation_name)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
     # Initialize the optimizer (Adam) to train the last layer of the model.
-    pass
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    loss_module = nn.CrossEntropyLoss()
 
     # Training loop with validation after each epoch. Save the best model.
-    pass
+    best_accuracy = -1
+    best_model = None
+    for epoch in range(epochs):
+        # Training
+        model.train()
+        counter = 0
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True) #TODO is use of dataloader like this valid?
+        for data, labels in train_dataloader:
+            data = data.to(device)
+            labels = labels.to(device)
+            prediction = model(data)
+            #_, prediction = torch.max(prediction, 1)
+            loss = loss_module(prediction, labels)
+            #TODO which loss to use?
+
+            # Perform backpropagation
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            counter += 1
+            if counter % len(train_dataset) // batch_size // 100 == 0:
+                print(f"{len(train_dataset) // batch_size // counter}% done with training")
+
+        # Evaluation
+        
+        validation_accuracy = evaluate_model(model, val_dataloader, device)
+        print(f"Validation Accuracy after Epoch {epoch}: {validation_accuracy}")
+        if validation_accuracy > best_accuracy:
+            best_model = model.state_dict()
+            best_accuracy = validation_accuracy
+            #TODO do checkpoints need to be stored?
 
     # Load the best model on val accuracy and return it.
-    pass
+    model.load_state_dict(best_model)
 
     #######################
     # END OF YOUR CODE    #
@@ -119,11 +156,23 @@ def evaluate_model(model, data_loader, device):
     # PUT YOUR CODE HERE  #
     #######################
     # Set model to evaluation mode (Remember to set it back to training mode in the training loop)
-    pass
+    model.eval()
 
     # Loop over the dataset and compute the accuracy. Return the accuracy
     # Remember to use torch.no_grad().
-    pass
+    accuracies = []
+    batch_sizes = []
+    with torch.no_grad():
+        for data, labels in data_loader:
+            data = data.to(device)
+            labels = labels.to(device)
+            batch_sizes.append(data.size()[0])
+
+            prediction = model(data)
+            _, predicted_class = torch.max(prediction, dim=1)
+            accuracies.append(sum([1 if pred == gt else 0 for pred, gt in zip(predicted_class, labels)]) / batch_sizes[-1])
+            
+    accuracy = np.average(accuracies, weights=batch_sizes)
 
     #######################
     # END OF YOUR CODE    #
@@ -148,22 +197,33 @@ def main(lr, batch_size, epochs, data_dir, seed, augmentation_name):
     # PUT YOUR CODE HERE  #
     #######################
     # Set the seed for reproducibility
-    pass
+    set_seed(seed)
 
     # Set the device to use for training
-    pass
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        print("Connected to GPU")
+    else:
+        #raise ValueError("No GPU available")
+        print("WARNING: no GPU")
+        device = torch.device("cpu")
 
     # Load the model
-    pass
+    model = get_model()
+    model.to(device)
 
     # Get the augmentation to use
     pass
 
     # Train the model
-    pass
+    checkpoint_name = None #TODO implement properly
+    train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device, augmentation_name)
 
     # Evaluate the model on the test set
-    pass
+    test_dataset = get_test_set(data_dir)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
+    test_accuracy = evaluate_model(model, test_dataloader, device)
+    print(f"Test accuracy was {round(test_accuracy, 3)}")
 
     #######################
     # END OF YOUR CODE    #

@@ -53,16 +53,18 @@ class MLP(object):
         # PUT YOUR CODE HERE  #
         #######################
         
-        # Linear Modules
         self.layers = []
+        self.linear_layers = []
         for idx, (n_input, n_output) in enumerate(zip([n_inputs] + n_hidden, n_hidden + [n_classes])):
+          # Append linear module
           self.layers.append(LinearModule(n_input, n_output, input_layer=bool(idx==0)))
-          #self.layers.append(ELUModule())
+          self.linear_layers.append(self.layers[-1])
+          if idx < len(n_hidden):
+            # Append ELU module (except after last layer)
+            self.layers.append(ELUModule())
 
         # Other Modules
         self.softmax = SoftMaxModule()
-        self.elu = ELUModule()
-        self.elu.cached_input = []
           
         #######################
         # END OF YOUR CODE    #
@@ -89,8 +91,6 @@ class MLP(object):
         out = x
         for layer in self.layers:
           out = layer.forward(out)
-          out = self.elu.forward(out)
-
         out = self.softmax.forward(out)
 
         #######################
@@ -116,7 +116,6 @@ class MLP(object):
 
         last_grad = self.softmax.backward(dout)
         for layer in reversed(self.layers):
-          self.elu.backward(last_grad)
           last_grad = layer.backward(last_grad)
 
         #######################
@@ -138,7 +137,6 @@ class MLP(object):
         for layer in self.layers:
           layer.clear_cache()
         self.softmax.clear_cache()
-        self.elu.clear_cache()
         #######################
         # END OF YOUR CODE    #
         #######################
