@@ -102,7 +102,6 @@ def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device
     for epoch in range(epochs):
         # Training
         model.train()
-        counter = 0
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True) #TODO is use of dataloader like this valid?
         for data, labels in train_dataloader:
             data = data.to(device)
@@ -117,12 +116,7 @@ def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device
             loss.backward()
             optimizer.step()
 
-            counter += 1
-            if counter % len(train_dataset) // batch_size // 100 == 0:
-                print(f"{len(train_dataset) // batch_size // counter}% done with training")
-
         # Evaluation
-        
         validation_accuracy = evaluate_model(model, val_dataloader, device)
         print(f"Validation Accuracy after Epoch {epoch}: {validation_accuracy}")
         if validation_accuracy > best_accuracy:
