@@ -2,3 +2,5 @@ data/
 *.png
 *.DS_Store
 *.txt
+*.zip
+*__pycache__
