@@ -200,7 +200,7 @@ class ZeroshotCLIP(nn.Module):
             image (torch.Tensor): image tensor of shape (3, 224, 224)
 
         Returns:
-            logits (torch.Tensor): logits of shape (num_classes,)
+            logits (torch.Tensor): logits of shape (batch size, number of classes)
         """
 
         #######################
@@ -218,7 +218,7 @@ class ZeroshotCLIP(nn.Module):
         # - Normalize the image features.
         # - Compute similarity logits between the image features and the text features.
         #   You need to multiply the similarity logits with the logit scale (clip_model.logit_scale).
-        # - Return logits of shape (num_classes,).
+        # - Return logits of shape (batch size, number of classes).
 
         # Hint:
         # - Read the CLIP API documentation for more details:
@@ -232,7 +232,6 @@ class ZeroshotCLIP(nn.Module):
         # - Compute similarity logits between the image features and the text features.
         logits = (self.clip_model.logit_scale * image_encoded @ self.text_features.T)#.softmax(dim=-1) #TODO softmax required or what exactly are logits here
         # - Return logits of shape (num_classes,).
-        assert logits.size() == ((self.text_features).size()[0],)
         return logits
 
         # remove this line once you implement the function
@@ -401,7 +400,8 @@ def main():
         logits = clipzs.model_inference(data)
         print(logits)
         predictions = ...
-        top1.update(accuracy, batch_size)
+        assert False
+        #top1.update(accuracy, batch_size)
 
 
     # you can remove the following line once you have implemented the inference loop
