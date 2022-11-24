@@ -170,8 +170,23 @@ class ZeroshotCLIP(nn.Module):
         # - Read the CLIP API documentation for more details:
         #   https://github.com/openai/CLIP#api
 
-        # remove this line once you implement the function
-        raise NotImplementedError("Implement the precompute_text_features function.")
+
+        # Tokinization of each text prompt using CLIP tokenizer
+        prompts_tokenized = clip.tokenize(prompts).to(device) #TODO can batch of text be passed to this function
+
+        # - Compute the text features (encodings) for each prompt.
+        with torch.no_grad():
+            prompts_encoded = clip_model.encode_text(prompts_tokenized)
+
+        # - Normalize the text features.
+        #prompts_normalized = prompts_encoded.norm(dim=-1, keepdim=True) #TODO is that correct?
+        prompts_encoded /= prompts_encoded.norm(dim=-1, keepdim=True)
+
+        # - Return a tensor of shape (num_prompts, 512).
+        assert prompts_encoded.size() == (len(prompts), 512) #TODO remove
+        return prompts_encoded
+
+        raise NotImplementedError("Implement the precompute_text_features function.") #TODO remove
 
         #######################
         # END OF YOUR CODE    #
@@ -209,8 +224,19 @@ class ZeroshotCLIP(nn.Module):
         # - Read the CLIP API documentation for more details:
         #   https://github.com/openai/CLIP#api
 
+        # - Compute the image features (encodings) using the CLIP model.
+        with torch.no_grad():
+            image_encoded = self.clip_model.encode_image(image)
+        # - Normalize the image features.
+        image_encoded /= image_encoded.norm(dim=-1, keepdim=True)
+        # - Compute similarity logits between the image features and the text features.
+        logits = (self.clip_model.logit_scale * image_encoded @ self.text_features.T)#.softmax(dim=-1) #TODO softmax required or what exactly are logits here
+        # - Return logits of shape (num_classes,).
+        assert logits.size() == ((self.text_features).size()[0],)
+        return logits
+
         # remove this line once you implement the function
-        raise NotImplementedError("Implement the model_inference function.")
+        raise NotImplementedError("Implement the model_inference function.") #TODO remove
 
         #######################
         # END OF YOUR CODE    #
@@ -371,15 +397,22 @@ def main():
     # - Updating the accuracy meter is as simple as calling top1.update(accuracy, batch_size)
     # - You can use the model_inference method of the ZeroshotCLIP class to get the logits
 
+    for data, label in loader:
+        logits = clipzs.model_inference(data)
+        print(logits)
+        predictions = ...
+        top1.update(accuracy, batch_size)
+
+
     # you can remove the following line once you have implemented the inference loop
-    raise NotImplementedError("Implement the inference loop")
+    #raise NotImplementedError("Implement the inference loop") #TODO remove
 
     #######################
     # END OF YOUR CODE    #
     #######################
 
     print(
-        f"Zero-shot CLIP top-1 accuracy on {args.dataset}/{args.split}: {top1.val*100}"
+        f"Zero-shot CLIP top-1 accuracy on {args.dataset}/{args.split}: {top1.avg*100}"
     )
 
 

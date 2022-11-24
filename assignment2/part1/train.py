@@ -58,8 +58,10 @@ def get_model(num_classes=100):
         param.requires_grad = False
 
     # Randomly initialize and modify the model's last layer for CIFAR100.
-    model.fc = nn.LazyLinear(num_classes)
-    #TODO correct approach to do it like that?
+    #model.fc = nn.LazyLinear(num_classes)
+    model.fc = nn.Linear(512, num_classes)
+    model.fc.weight.data.normal_(0, 0.01)
+    model.fc.bias.data.fill_(0)
 
     #######################
     # END OF YOUR CODE    #
@@ -91,6 +93,7 @@ def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device
     # Load the datasets
     train_dataset, val_dataset = get_train_validation_set(data_dir, augmentation_name=augmentation_name)
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
     # Initialize the optimizer (Adam) to train the last layer of the model.
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -99,10 +102,10 @@ def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device
     # Training loop with validation after each epoch. Save the best model.
     best_accuracy = -1
     best_model = None
+    early_stopping_counter = 0
     for epoch in range(epochs):
         # Training
         model.train()
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True) #TODO is use of dataloader like this valid?
         for data, labels in train_dataloader:
             data = data.to(device)
             labels = labels.to(device)
@@ -118,14 +121,20 @@ def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device
 
         # Evaluation
         validation_accuracy = evaluate_model(model, val_dataloader, device)
-        print(f"Validation Accuracy after Epoch {epoch}: {validation_accuracy}")
+        print(f"Validation Accuracy after Epoch {epoch}: {validation_accuracy}", flush=True)
+        early_stopping_counter += 1
         if validation_accuracy > best_accuracy:
             best_model = model.state_dict()
             best_accuracy = validation_accuracy
-            #TODO do checkpoints need to be stored?
+            early_stopping_counter = 0
+        if early_stopping_counter > 4:
+            print(f"Early stopping triggered after epoch {epoch}")
+            break
+
 
     # Load the best model on val accuracy and return it.
     model.load_state_dict(best_model)
+    torch.save(best_model, checkpoint_name)
 
     #######################
     # END OF YOUR CODE    #
@@ -196,10 +205,10 @@ def main(lr, batch_size, epochs, data_dir, seed, augmentation_name):
     # Set the device to use for training
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
-        print("Connected to GPU")
+        print("Connected to GPU", flush=True)
     else:
-        #raise ValueError("No GPU available")
-        print("WARNING: no GPU")
+        raise ValueError("No GPU available")
+        print("WARNING: no GPU", flush=True)
         device = torch.device("cpu")
 
     # Load the model
@@ -210,14 +219,14 @@ def main(lr, batch_size, epochs, data_dir, seed, augmentation_name):
     pass
 
     # Train the model
-    checkpoint_name = None #TODO implement properly
+    checkpoint_name = "best_resnet18_model.model"
     train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device, augmentation_name)
 
     # Evaluate the model on the test set
     test_dataset = get_test_set(data_dir)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
     test_accuracy = evaluate_model(model, test_dataloader, device)
-    print(f"Test accuracy was {round(test_accuracy, 3)}")
+    print(f"Test accuracy was {round(test_accuracy, 3)}", flush=True)
 
     #######################
     # END OF YOUR CODE    #
