@@ -155,8 +155,6 @@ class ZeroshotCLIP(nn.Module):
         # PUT YOUR CODE HERE  #
         #######################
 
-        # TODO: Implement the precompute_text_features function.
-
         # Instructions:
         # - Given a list of prompts, compute the text features for each prompt.
 
@@ -172,21 +170,18 @@ class ZeroshotCLIP(nn.Module):
 
 
         # Tokinization of each text prompt using CLIP tokenizer
-        prompts_tokenized = clip.tokenize(prompts).to(device) #TODO can batch of text be passed to this function
+        prompts_tokenized = clip.tokenize(prompts).to(device)
 
         # - Compute the text features (encodings) for each prompt.
         with torch.no_grad():
             prompts_encoded = clip_model.encode_text(prompts_tokenized)
 
         # - Normalize the text features.
-        #prompts_normalized = prompts_encoded.norm(dim=-1, keepdim=True) #TODO is that correct?
-        prompts_encoded /= prompts_encoded.norm(dim=-1, keepdim=True)
+        prompts_encoded = prompts_encoded / prompts_encoded.norm(dim=-1, keepdim=True)
 
         # - Return a tensor of shape (num_prompts, 512).
-        assert prompts_encoded.size() == (len(prompts), 512) #TODO remove
+        #assert prompts_encoded.size() == (len(prompts), 512)
         return prompts_encoded
-
-        raise NotImplementedError("Implement the precompute_text_features function.") #TODO remove
 
         #######################
         # END OF YOUR CODE    #
@@ -207,8 +202,6 @@ class ZeroshotCLIP(nn.Module):
         # PUT YOUR CODE HERE  #
         #######################
 
-        # TODO: Implement the model_inference function.
-
         # Instructions:
         # - Given an image, perform the forward pass of the CLIP model,
         #   i.e., compute the logits w.r.t. each of the prompts defined earlier.
@@ -228,14 +221,12 @@ class ZeroshotCLIP(nn.Module):
         with torch.no_grad():
             image_encoded = self.clip_model.encode_image(image)
         # - Normalize the image features.
-        image_encoded /= image_encoded.norm(dim=-1, keepdim=True)
+        image_encoded = image_encoded / image_encoded.norm(dim=-1, keepdim=True)
         # - Compute similarity logits between the image features and the text features.
-        logits = (self.clip_model.logit_scale * image_encoded @ self.text_features.T)#.softmax(dim=-1) #TODO softmax required or what exactly are logits here
+        logits = (self.logit_scale * image_encoded @ self.text_features.T)
         # - Return logits of shape (num_classes,).
+        #print(logits)
         return logits
-
-        # remove this line once you implement the function
-        raise NotImplementedError("Implement the model_inference function.") #TODO remove
 
         #######################
         # END OF YOUR CODE    #
@@ -384,8 +375,6 @@ def main():
     # PUT YOUR CODE HERE  #
     #######################
 
-    # TODO: Implement the inference loop
-
     # Steps:
     # - Iterate over the dataloader
     # - For each image in the batch, get the predicted class
@@ -397,15 +386,13 @@ def main():
     # - You can use the model_inference method of the ZeroshotCLIP class to get the logits
 
     for data, label in loader:
+        data = data.to(device)
+        label = label.to(device)
         logits = clipzs.model_inference(data)
-        print(logits)
-        predictions = ...
-        assert False
-        #top1.update(accuracy, batch_size)
-
-
-    # you can remove the following line once you have implemented the inference loop
-    #raise NotImplementedError("Implement the inference loop") #TODO remove
+        _, predicted_class = torch.max(logits, dim=1)
+        batch_size = label.size()[0]
+        accuracy = sum([1 if pred == gt else 0 for pred, gt in zip(predicted_class, label)]) / batch_size
+        top1.update(accuracy, batch_size)
 
     #######################
     # END OF YOUR CODE    #

@@ -33,11 +33,25 @@ def add_augmentation(augmentation_name, transform_list):
     # PUT YOUR CODE HERE  #
     #######################
 
+    augmentation_dict = {
+        "ColorJitter": transforms.ColorJitter(0.3, 0.3, 0.3, 0.3),
+        "RandomAffine": transforms.RandomAffine(degrees=5, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+        "RandomAffineSmall": transforms.RandomAffine(degrees=2.5, translate=(0.05, 0.05), scale=(0.98, 1.02)),
+        "GaussianBlur": transforms.GaussianBlur(kernel_size=(3,3)),
+        "RandomHorizontalFlip": transforms.RandomHorizontalFlip(),
+        #"AutoAugment": transforms.AutoAugment(),
+        #"RandomPerspective": transforms.RandomPerspective(0.3,0.3)
+        "RandomPerspective": transforms.RandomPerspective(0.1,0.5)
+    }
+
     # Create a new transformation based on the augmentation_name.
-    pass
+    if augmentation_name not in augmentation_dict:
+        raise ValueError("Unknown / Unsupported Augmentation")
+    augmentation = augmentation_dict[augmentation_name]
+    print("Used augmentation:", augmentation_name, flush=True)
 
     # Add the new transformation to the list.
-    pass
+    transform_list.append(augmentation)
 
     #######################
     # END OF YOUR CODE    #

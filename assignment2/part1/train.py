@@ -110,9 +110,7 @@ def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device
             data = data.to(device)
             labels = labels.to(device)
             prediction = model(data)
-            #_, prediction = torch.max(prediction, 1)
             loss = loss_module(prediction, labels)
-            #TODO which loss to use?
 
             # Perform backpropagation
             optimizer.zero_grad()
@@ -216,6 +214,7 @@ def main(lr, batch_size, epochs, data_dir, seed, augmentation_name):
     model.to(device)
 
     # Get the augmentation to use
+    #TODO 
     pass
 
     # Train the model

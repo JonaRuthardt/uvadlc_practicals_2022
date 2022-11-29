@@ -67,7 +67,11 @@ class Learner:
         # Note: You need to keep the visual prompt's parameters trainable
         # Hint: Check for "prompt_learner" in the parameters' names
 
-        raise NotImplementedError
+        for name, param in self.vpt.named_parameters():
+            #print(name, "prompt_learner" in name)
+            if ("prompt_learner" not in name): #and ("visual" not in name):
+                param.requires_grad = False
+            
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -214,13 +218,20 @@ class Learner:
 
             # Steps ( your usual training loop :) ):
             # - Set the gradients to zero
+            self.optimizer.zero_grad()
             # - Move the images/targets to the device
+            images = images.to(self.device)
+            target = target.to(self.device)
             # - Perform a forward pass (using self.vpt)
+            output = self.vpt(images)
             # - Compute the loss (using self.criterion)
+            loss = self.criterion(output, target)
             # - Perform a backward pass
+            loss.backward(retain_graph=False)
+            #loss.backward()
             # - Update the parameters
+            self.optimizer.step()
 
-            raise NotImplementedError
             #######################
             # END OF YOUR CODE    #
             #######################
@@ -282,10 +293,13 @@ class Learner:
 
                 # Steps ( your usual evaluation loop :) ):
                 # - Move the images/targets to the device
+                images = images.to(self.device)
+                target = target.to(self.device)
                 # - Forward pass (using self.vpt)
+                output = self.vpt(images)
                 # - Compute the loss (using self.criterion)
+                loss = self.criterion(output, target)
 
-                raise NotImplementedError
                 #######################
                 # END OF YOUR CODE    #
                 #######################

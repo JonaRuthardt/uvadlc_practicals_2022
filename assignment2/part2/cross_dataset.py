@@ -174,14 +174,14 @@ def main():
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        # TODO: Define `classnames` as a list of 10 + 100 class labels from CIFAR10 and CIFAR100
+        # Define `classnames` as a list of 10 + 100 class labels from CIFAR10 and CIFAR100
 
-        raise NotImplementedError
+        classnames = cifar10_test.classes + cifar100_test.classes
+
         #######################
         # END OF YOUR CODE    #
         #######################
 
-        classnames = cifar10_test.classes + cifar100_test.classes
 
         # 5. Load the clip model
         print(f"Loading CLIP (backbone: {args.arch})")
@@ -204,7 +204,15 @@ def main():
         # TODO: Compute the text features (for each of the prompts defined above) using CLIP
         # Note: This is similar to the code you wrote in `clipzs.py`
 
-        raise NotImplementedError
+        # Tokinization of each text prompt using CLIP tokenizer
+        prompts_tokenized = clip.tokenize(prompts).to(args.device)
+        # - Compute the text features (encodings) for each prompt.
+        with torch.no_grad():
+            prompts_encoded = clip_model.encode_text(prompts_tokenized)
+        # - Normalize the text features.
+        text_features = prompts_encoded / prompts_encoded.norm(dim=-1, keepdim=True)
+
+        
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -220,7 +228,8 @@ def main():
         # That is, if a class in CIFAR100 corresponded to '4', it should now correspond to '14'
         # Set the result of this to the attribute cifar100_test.targets to override them
 
-        raise NotImplementedError
+        cifar100_test.targets += 10 #TODO verify correctness
+
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -247,13 +256,18 @@ def main():
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        # TODO: Compute the weighted average of the above two accuracies
+
+        cifar10_sample_num = len(cifar10_loader.dataset)
+        cifar100_sample_num = len(cifar100_loader.dataset)
+        total_sample_num = cifar10_sample_num + cifar100_sample_num
+
+        accuracy_all = acc_cifar10 * (cifar10_sample_num / total_sample_num) \
+                          + acc_cifar100 * (cifar100_sample_num / total_sample_num)
 
         # Hint:
         # - accurary_all = acc_cifar10 * (% of cifar10 samples) \
         #                  + acc_cifar100 * (% of cifar100 samples)
 
-        raise NotImplementedError
         #######################
         # END OF YOUR CODE    #
         #######################

@@ -80,12 +80,20 @@ class CustomCLIP(nn.Module):
         # TODO: Write code to compute text features.
         # Hint: You can use the code from clipzs.py here!
 
+        # Tokinization of each text prompt using CLIP tokenizer
+        prompts_tokenized = clip.tokenize(prompts).to(args.device)
+        # - Compute the text features (encodings) for each prompt.
+        with torch.no_grad():
+            text_features = clip_model.encode_text(prompts_tokenized)
+        # - Normalize the text features.
+        text_features /= text_features.norm(dim=-1, keepdim=True)
+
         # Instructions:
         # - Given a list of prompts, compute the text features for each prompt.
         # - Return a tensor of shape (num_prompts, 512).
 
         # remove this line once you implement the function
-        raise NotImplementedError("Write the code to compute text features.")
+        #raise NotImplementedError("Write the code to compute text features.")
 
         #######################
         # END OF YOUR CODE    #
@@ -119,8 +127,16 @@ class CustomCLIP(nn.Module):
         # - You need to multiply the similarity logits with the logit scale (clip_model.logit_scale).
         # - Return logits of shape (num_classes,).
 
-        # remove this line once you implement the function
-        raise NotImplementedError("Implement the model_inference function.")
+        # - Compute the image features (encodings) using the CLIP model.
+        image = self.prompt_learner(image)
+        image_encoded = self.clip_model.encode_image(image)
+        # - Normalize the image features.
+        #image_encoded /= image_encoded.norm(dim=-1, keepdim=True) 
+        image_encoded = image_encoded / image_encoded.norm(dim=-1, keepdim=True) 
+        # - Compute similarity logits between the image features and the text features.
+        logits = (self.logit_scale * image_encoded @ self.text_features.T)
+        # - Return logits of shape (num_classes,).
+        return logits
 
         #######################
         # END OF YOUR CODE    #
