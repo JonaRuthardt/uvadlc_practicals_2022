@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu_shared_course
+#SBATCH --gres=gpu:1
+#SBATCH --job-name=ExampleJob
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=3
+#SBATCH --time=06:00:00
+#SBATCH --mem=32000M
+#SBATCH --output=NoisyData_%A.out
+
+module purge
+module load 2021
+module load Anaconda3/2021.05
+
+# Activate your environment
+source activate dl2022
+# Run your code
+#srun python assignment2/part1/train.py --augmentation_name RandomPerspective
+#srun python cross_dataset.py --evaluate --method padding --prompt_size 30 --dataset cifar100 --resume save/models/padding_30_cifar100_clip_ViT-B/32_sgd_lr_40_decay_0_bsz_128_warmup_1000_trial_1/model_best.pth.tar 
+#srun python cross_dataset.py --evaluate --method fixed_patch --prompt_size 1 --dataset cifar100 --resume save/models/fixed_patch_1_cifar100_clip_ViT-B/32_sgd_lr_40_decay_0_bsz_128_warmup_1000_trial_1/model_best.pth.tar
+srun python cross_dataset.py --evaluate --method random_patch --prompt_size 1 --dataset cifar100 --resume save/models/random_patch_1_cifar100_clip_ViT-B/32_sgd_lr_40_decay_0_bsz_128_warmup_1000_trial_1/model_best.pth.tar
+#srun python cross_dataset.py --evaluate --method padding --prompt_size 30 --dataset cifar10 --resume save/models/padding_30_cifar10_clip_ViT-B/32_sgd_lr_40_decay_0_bsz_128_warmup_1000_trial_1/model_best.pth.tar 
+#srun python cross_dataset.py --evaluate --method fixed_patch --prompt_size 1 --dataset cifar10 --resume save/models/fixed_patch_1_cifar10_clip_ViT-B/32_sgd_lr_40_decay_0_bsz_128_warmup_1000_trial_1/model_best.pth.tar
+srun python cross_dataset.py --evaluate --method random_patch --prompt_size 1 --dataset cifar10 --resume save/models/random_patch_1_cifar10_clip_ViT-B/32_sgd_lr_40_decay_0_bsz_128_warmup_1000_trial_1/model_best.pth.tar

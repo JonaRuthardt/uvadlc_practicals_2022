@@ -30,8 +30,10 @@ root=/scratch/$USER
 mkdir -p $root
 
 datasets=(cifar100)
-methods=(padding fixed_patch random_patch)
-prompt_sizes=(1 5 15 30)
+#methods=(middle_line_patch random_performance)
+methods=(random_performance)
+#prompt_sizes=(1 5 15 55 105)
+prompt_sizes=(112)
 
 for dataset in "${datasets[@]}"; do
     for i in "${!methods[@]}"; do

@@ -22,8 +22,8 @@ import torch.nn.functional as F
 import torch.utils.data as data
 import torchvision.models as models
 from torch.utils.data import DataLoader
-
-from cifar100_utils import get_train_validation_set, get_test_set
+from dataset import *
+import clip
 
 
 def set_seed(seed):
@@ -70,77 +70,6 @@ def get_model(num_classes=100):
     return model
 
 
-def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device, augmentation_name=None):
-    """
-    Trains a given model architecture for the specified hyperparameters.
-
-    Args:
-        model: Model to train.
-        lr: Learning rate to use in the optimizer.
-        batch_size: Batch size to train the model with.
-        epochs: Number of epochs to train the model for.
-        data_dir: Directory where the dataset should be loaded from or downloaded to.
-        checkpoint_name: Filename to save the best model on validation.
-        device: Device to use.
-        augmentation_name: Augmentation to use for training.
-    Returns:
-        model: Model that has performed best on the validation set.
-    """
-    #######################
-    # PUT YOUR CODE HERE  #
-    #######################
-
-    # Load the datasets
-    train_dataset, val_dataset = get_train_validation_set(data_dir, augmentation_name=augmentation_name)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-
-    # Initialize the optimizer (Adam) to train the last layer of the model.
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    loss_module = nn.CrossEntropyLoss()
-
-    # Training loop with validation after each epoch. Save the best model.
-    best_accuracy = -1
-    best_model = None
-    early_stopping_counter = 0
-    for epoch in range(epochs):
-        # Training
-        model.train()
-        for data, labels in train_dataloader:
-            data = data.to(device)
-            labels = labels.to(device)
-            prediction = model(data)
-            loss = loss_module(prediction, labels)
-
-            # Perform backpropagation
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-        # Evaluation
-        validation_accuracy = evaluate_model(model, val_dataloader, device)
-        print(f"Validation Accuracy after Epoch {epoch}: {validation_accuracy}", flush=True)
-        early_stopping_counter += 1
-        if validation_accuracy > best_accuracy:
-            best_model = model.state_dict()
-            best_accuracy = validation_accuracy
-            early_stopping_counter = 0
-        if early_stopping_counter > 4:
-            print(f"Early stopping triggered after epoch {epoch}")
-            break
-
-
-    # Load the best model on val accuracy and return it.
-    model.load_state_dict(best_model)
-    torch.save(best_model, checkpoint_name)
-
-    #######################
-    # END OF YOUR CODE    #
-    #######################
-
-    return model
-
-
 def evaluate_model(model, data_loader, device):
     """
     Evaluates a trained model on a given dataset.
@@ -153,9 +82,6 @@ def evaluate_model(model, data_loader, device):
         accuracy: The accuracy on the dataset.
 
     """
-    #######################
-    # PUT YOUR CODE HERE  #
-    #######################
     # Set model to evaluation mode (Remember to set it back to training mode in the training loop)
     model.eval()
 
@@ -182,7 +108,7 @@ def evaluate_model(model, data_loader, device):
     return accuracy
 
 
-def main(lr, batch_size, epochs, data_dir, seed, augmentation_name):
+def main(args):
     """
     Main function for training and testing the model.
 
@@ -198,7 +124,7 @@ def main(lr, batch_size, epochs, data_dir, seed, augmentation_name):
     # PUT YOUR CODE HERE  #
     #######################
     # Set the seed for reproducibility
-    set_seed(seed)
+    set_seed(args.seed)
 
     # Set the device to use for training
     if torch.cuda.is_available():
@@ -206,20 +132,21 @@ def main(lr, batch_size, epochs, data_dir, seed, augmentation_name):
         print("Connected to GPU", flush=True)
     else:
         raise ValueError("No GPU available")
-        print("WARNING: no GPU", flush=True)
-        device = torch.device("cpu")
+
 
     # Load the model
     model = get_model()
+    #model = model._load_from_state_dict()
+    model.load_state_dict(torch.load("/home/lcur0653/uvadlc_practicals_2022-1/best_resnet18_model.model"))
     model.to(device)
 
-    # Train the model
-    checkpoint_name = "best_resnet18_model.model"
-    train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device, augmentation_name)
-
     # Evaluate the model on the test set
-    test_dataset = get_test_set(data_dir)
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
+    _, preprocess = clip.load(args.arch)
+    #dataset = load_dataset(args.dataset, args.root, args.split, preprocess)
+    train_dataset, val_dataset, test_dataset = load_dataset(
+            args, preprocess
+        )
+    test_dataloader = DataLoader(test_dataset, batch_size=64)
     test_accuracy = evaluate_model(model, test_dataloader, device)
     print(f"Test accuracy was {round(test_accuracy, 3)}", flush=True)
 
@@ -233,19 +160,18 @@ if __name__ == '__main__':
 
     # Feel free to add more arguments or change the setup
 
-    parser.add_argument('--lr', default=0.001, type=float,
-                        help='Learning rate to use')
-    parser.add_argument('--batch_size', default=128, type=int,
-                        help='Minibatch size')
-    parser.add_argument('--epochs', default=30, type=int,
-                        help='Max number of epochs')
-    parser.add_argument('--seed', default=123, type=int,
-                        help='Seed to use for reproducing results')
-    parser.add_argument('--data_dir', default='data/', type=str,
-                        help='Data directory where to store/find the CIFAR100 dataset.')
-    parser.add_argument('--augmentation_name', default=None, type=str,
-                        help='Augmentation to use.')
+    parser.add_argument("--root", type=str, default="./data", help="dataset")
+    parser.add_argument("--seed", type=int, default=0, help="seed")
+    parser.add_argument("--dataset", type=str, default="cifar100", help="dataset")
+    parser.add_argument("--image_size", type=int, default=224, help="image size")
+    parser.add_argument(
+        "--test_noise",
+        default=False,
+        action="store_true",
+        help="whether to add noise to the test images",
+    )
+    parser.add_argument("--arch", type=str, default="ViT-B/32")
 
     args = parser.parse_args()
     kwargs = vars(args)
-    main(**kwargs)
+    main(args)

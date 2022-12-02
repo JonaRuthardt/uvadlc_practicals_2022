@@ -195,3 +195,66 @@ class RandomPatchPrompter(nn.Module):
         # END OF YOUR CODE    #
         #######################
 
+
+class RandomPerformancePrompter(nn.Module):
+    """
+    Defines visual-prompt as a parametric padding over an image.
+    For refernece, this prompt should look like Fig 2(c) in the PDF.
+    """
+    def __init__(self, args):
+        super(RandomPerformancePrompter, self).__init__()
+        pad_size = args.prompt_size
+        image_size = args.image_size
+
+        self.image_size = image_size
+        self.pad_size = pad_size
+        self.inner_size = image_size - pad_size * 2
+        self.device = args.device
+
+        self.pad_left = nn.Parameter(torch.randn([1, 3, self.inner_size, pad_size], device=self.device) ,requires_grad=True)
+        self.pad_right = nn.Parameter(torch.randn([1, 3, self.inner_size, pad_size], device=self.device) ,requires_grad=True)
+        self.pad_up = nn.Parameter(torch.randn([1, 3, pad_size, image_size], device=self.device) ,requires_grad=True)
+        self.pad_down = nn.Parameter(torch.randn([1, 3, pad_size, image_size], device=self.device) ,requires_grad=True)
+
+    def forward(self, x):     
+        x = x.to(self.device)
+
+        prompt = torch.zeros([1, 3, self.inner_size, self.inner_size], device=self.device).to(self.device)
+        prompt = torch.concat([self.pad_left, prompt, self.pad_right], dim=3)
+        prompt = torch.concat([self.pad_up, prompt, self.pad_down], dim=2)
+        prompt = prompt.repeat(x.size()[0], 1, 1, 1)
+
+        #inner_image = x[:,:,self.pad_size: self.pad_size + self.inner_size, self.pad_size: self.pad_size + self.inner_size]
+        #print(f"SIZE: {inner_image.size()}; {self.pad_left.size()}; {self.pad_size + self.inner_size}; {self.inner_size}", flush=True)
+        #output = torch.concat([self.pad_left, inner_image, self.pad_right], dim=3)
+        #output = torch.concat([self.pad_up, output, self.pad_down], dim=2)
+
+        prompt[:,:,self.pad_size: self.pad_size + self.inner_size, self.pad_size: self.pad_size + self.inner_size] = x[:,:,self.pad_size: self.pad_size + self.inner_size, self.pad_size: self.pad_size + self.inner_size]
+
+        return prompt.to(self.device)
+
+class MiddleLinePrompter(nn.Module):
+    """
+    Defines visual-prompt as a parametric padding over an image.
+    For refernece, this prompt should look like Fig 2(c) in the PDF.
+    """
+    def __init__(self, args):
+        super(MiddleLinePrompter, self).__init__()
+        pad_size = args.prompt_size
+        image_size = args.image_size
+
+        self.image_size = image_size
+        self.pad_size = pad_size
+        self.device = args.device
+
+        self.prompt = nn.Parameter(torch.randn([1, 3, pad_size, image_size], device=self.device) ,requires_grad=True)
+
+    def forward(self, x):     
+        x = x.to(self.device)
+
+        half_pad_size = self.pad_size // 2
+        half_img_size = self.image_size // 2
+        prompt = self.prompt.repeat(x.size()[0],1,1,1)
+        x[:,:,half_img_size - half_pad_size: half_img_size + half_pad_size, :] = prompt[:,:,:half_pad_size * 2, :]
+
+        return x

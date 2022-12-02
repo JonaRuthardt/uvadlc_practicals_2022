@@ -60,6 +60,8 @@ def parse_option():
             "padding",
             "random_patch",
             "fixed_patch",
+            "random_performance",
+            "middle_line_patch"
         ],
         help="choose visual prompting method",
     )
