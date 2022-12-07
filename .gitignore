@@ -5,3 +5,7 @@ data/
 *.zip
 *__pycache__
 *.out
+*.json
+*.yaml
+events.out.tfevents.*
+*ckpt

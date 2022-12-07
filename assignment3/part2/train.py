@@ -101,7 +101,14 @@ def train_aae(epoch, model, train_loader,
         # PUT YOUR CODE HERE  #
         #######################
         # Encoder-Decoder update
-        raise NotImplementedError
+        
+        recon_x, z = model(x)
+        ae_loss = model.loss_function(x, recon_x)
+
+        optimizer_ae.zero_grad()
+        ae_loss.backward()
+        optimizer_ae.step()
+
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -110,7 +117,13 @@ def train_aae(epoch, model, train_loader,
         # PUT YOUR CODE HERE  #
         #######################
         # Discriminator update
-        raise NotImplementedError
+
+        #TODO: Check if this is correct
+        optimizer_disc.zero_grad()
+        disc_loss = model.loss_function_discriminator(z)
+        disc_loss.backward()
+        optimizer_disc.step()
+
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -168,9 +181,11 @@ def main(args):
     #######################
     # You can use the Adam optimizer for autoencoder and SGD for discriminator.
     # It is recommended to reduce the momentum (beta1) to e.g. 0.5 for Adam optimizer.
-    optimizer_ae = None
-    optimizer_disc = None
-    raise NotImplementedError
+    # create adam optimizer only for encoder and decoder networks of model 
+    parameters = list(model.encoder.parameters()) + list(model.decoder.parameters())
+    optimizer_ae = torch.optim.Adam(parameters, lr=args.ae_lr, betas=(0.5, 0.999))
+    optimizer_disc = torch.optim.SGD(model.discriminator.parameters(), lr=args.d_lr)
+    
     #######################
     # END OF YOUR CODE    #
     #######################

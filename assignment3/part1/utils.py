@@ -30,13 +30,15 @@ def sample_reparameterize(mean, std):
         z - A sample of the distributions, with gradient support for both mean and std.
             The tensor should have the same shape as the mean and std input tensors.
     """
+    
     assert not (std < 0).any().item(), "The reparameterization trick got a negative std as input. " + \
                                        "Are you sure your input is std and not log_std?"
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    z = None
-    raise NotImplementedError
+
+    z = mean + std * torch.randn_like(std)
+    
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -58,8 +60,11 @@ def KLD(mean, log_std):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    KLD = None
-    raise NotImplementedError
+    
+    KLD = 0.5 * torch.sum(torch.exp(2 * log_std) + mean**2 - 1 - 2 * log_std, dim=-1)
+
+    #KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) #TODO remove when done
+    
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -78,8 +83,14 @@ def elbo_to_bpd(elbo, img_shape):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    bpd = None
-    raise NotImplementedError
+    
+    # print(elbo.size())
+    elbo = torch.sum(elbo)
+    #elbo = torch.mean(elbo) #TODO mean or sum?
+    bpd = elbo * np.log2(np.e) / np.prod(img_shape)
+
+
+    
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -110,8 +121,22 @@ def visualize_manifold(decoder, grid_size=20):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    img_grid = None
-    raise NotImplementedError
+    
+    grid_values = torch.linspace(0.5/grid_size, (grid_size-0.5)/grid_size, grid_size)
+    #grid_values = torch.tensor([0.5 * i / grid_size for i in range(1, grid_size+1)])
+    grid = torch.meshgrid(grid_values, grid_values)
+
+    samples = torch.distributions.Normal(0, 1).icdf(torch.stack(grid, dim=-1).reshape(-1, 2)) #TODO check if this is correct
+
+    prediction = decoder(samples)
+    prediction = torch.softmax(prediction, dim=-1)
+    #TODO do it this way? https://piazza.com/class/l8vanaiu2bh1rg/post/226
+    # sample the pixels of the image from a categorical distribution whose parameters are given by the output of the decoder (after applying the softmax).
+    # use torch.multinomial to sample from a categorical distribution.
+    # prediction = torch.multinomial(prediction, num_samples=1, replacement=True)
+
+    img_grid = make_grid(prediction, nrow=grid_size)
+    
     #######################
     # END OF YOUR CODE    #
     #######################

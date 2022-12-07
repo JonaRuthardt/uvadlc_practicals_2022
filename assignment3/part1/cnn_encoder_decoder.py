@@ -38,7 +38,26 @@ class CNNEncoder(nn.Module):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        raise NotImplementedError
+        
+        # Code-block from Tutorial 9
+        c_hid = num_filters
+        act_fn = nn.GELU
+        self.net = nn.Sequential(
+            nn.Conv2d(num_input_channels, c_hid, kernel_size=3, padding=1, stride=2), # 32x32 => 16x16
+            act_fn(),
+            nn.Conv2d(c_hid, c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.Conv2d(c_hid, 2*c_hid, kernel_size=3, padding=1, stride=2), # 16x16 => 8x8
+            act_fn(),
+            nn.Conv2d(2*c_hid, 2*c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.Conv2d(2*c_hid, 2*c_hid, kernel_size=3, padding=1, stride=2), # 8x8 => 4x4
+            act_fn(),
+            nn.Flatten(), # Image grid to single feature vector
+            # nn.Linear(2*16*c_hid, (2, z_dim)) #TODO is this correct to have two dimensions for mean and std?
+        )
+        self.mu = nn.Linear(2*16*c_hid, z_dim)
+        self.log_std = nn.Linear(2*16*c_hid, z_dim)
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -56,9 +75,11 @@ class CNNEncoder(nn.Module):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        mean = None
-        log_std = None
-        raise NotImplementedError
+        x_features = self.net(x)
+
+        mean = self.mu(x_features)
+        log_std = self.log_std(x_features)
+        
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -84,7 +105,28 @@ class CNNDecoder(nn.Module):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        raise NotImplementedError
+        
+        # Code-block from Tutorial 9
+        c_hid = num_filters
+        act_fn = nn.GELU
+        self.linear = nn.Sequential(
+            nn.Linear(z_dim, 2*16*c_hid),
+            act_fn()
+        )
+        self.net = nn.Sequential(
+            #nn.ConvTranspose2d(2*c_hid, 2*c_hid, kernel_size=3, output_padding=1, padding=1, stride=2), # 4x4 => 8x8
+            nn.ConvTranspose2d(2*c_hid, 2*c_hid, kernel_size=3, output_padding=0, padding=1, stride=2), # 4x4 => 8x8
+            act_fn(),
+            nn.Conv2d(2*c_hid, 2*c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.ConvTranspose2d(2*c_hid, c_hid, kernel_size=3, output_padding=1, padding=1, stride=2), # 8x8 => 16x16
+            act_fn(),
+            nn.Conv2d(c_hid, c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.ConvTranspose2d(c_hid, num_input_channels, kernel_size=3, output_padding=1, padding=1, stride=2), # 16x16 => 32x32
+            #nn.Tanh() # The input images is scaled between -1 and 1, hence the output has to be bounded as well #TODO remove accurding to whatsapp discussion
+        )
+
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -102,8 +144,10 @@ class CNNDecoder(nn.Module):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        x = None
-        raise NotImplementedError
+        x = self.linear(z)
+        x = x.reshape(x.shape[0], -1, 4, 4)
+        x = self.net(x) #TODO re-scaling required?
+        
         #######################
         # END OF YOUR CODE    #
         #######################
