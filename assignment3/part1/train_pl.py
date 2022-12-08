@@ -110,8 +110,22 @@ class VAE(pl.LightningModule):
         # PUT YOUR CODE HERE  #
         #######################
         z_samples = torch.randn(batch_size, self.hparams.z_dim)
-        x_samples = self.decoder(z_samples)
-        x_samples = torch.argmax(x_samples, dim=1, keepdim=True) #TODO check if this is correct
+        x = self.decoder(z_samples)
+
+        mode = "categorical"
+        if mode == "argmax":
+            x_samples = torch.argmax(x, dim=1, keepdim=True)
+        elif mode == "categorical":
+            probs = torch.softmax(x, dim=1)
+            # Create empty image
+            img = torch.zeros(x.shape[0], 1, x.shape[2], x.shape[3], dtype=torch.long)
+            # Generation loop
+            img_shape = img.shape
+            for h in range(img_shape[2]):
+                for w in range(img_shape[3]):
+                    img[:,0,h,w] = torch.multinomial(probs[:,:,h,w] , num_samples=1).squeeze(dim=-1)
+            x_samples = img
+
         #######################
         # END OF YOUR CODE    #
         #######################

@@ -122,7 +122,7 @@ class ConvDecoder(nn.Module):
             nn.Conv2d(c_hid, c_hid, kernel_size=3, padding=1),
             act_fn(),
             nn.ConvTranspose2d(c_hid, num_input_channels, kernel_size=3, output_padding=1, padding=1, stride=2), # 16x16 => 32x32
-            nn.Tanh() # The input images is scaled between -1 and 1, hence the output has to be bounded as well #TODO remove accurding to whatsapp discussion
+            nn.Tanh()
         )
 
         #######################
@@ -257,7 +257,7 @@ class AdversarialAE(nn.Module):
 
         MSE_loss = nn.MSELoss()
         reconstruction_loss = MSE_loss(x, recon_x)
-        gen_loss, logging_dict_gen = self.get_loss_discriminator(z_fake)
+        gen_loss, logging_dict_gen = self.get_loss_discriminator(z_fake) #TODO: check if this is correct (because generator is something else?)
         ae_loss = lambda_ * reconstruction_loss + (1 - lambda_) * gen_loss
         
         logging_dict = {"gen_loss": gen_loss,
@@ -288,17 +288,15 @@ class AdversarialAE(nn.Module):
         # PUT YOUR CODE HERE  #
         #######################
         
-        z_real = torch.randn_like(z_fake)
+        z_real = torch.randn_like(z_fake, device=self.device)
         
         pred_fake = self.discriminator(z_fake)
         pred_real = self.discriminator(z_real)
 
-        loss_fake  = torch.log(1 - pred_fake + 1e-8) #TODO: check if +1e-8 is correct
-        loss_fake = torch.mean(loss_fake) #TODO: check if mean is needed/correct
-        loss_real = torch.log(pred_real + 1e-8) #TODO: check if +1e-8 is correct
-        loss_real = torch.mean(loss_real) #TODO: check if mean is needed/correct
+        loss_fake = nn.BCEWithLogitsLoss()(pred_fake, torch.zeros_like(pred_fake, device=self.device))
+        loss_real = nn.BCEWithLogitsLoss()(pred_real, torch.ones_like(pred_real, device=self.device))
 
-        disc_loss = loss_fake + loss_real
+        disc_loss = (loss_fake + loss_real) / 2
 
         correct_fake = (pred_fake < 0.0).sum().item()
         correct_real = (pred_real > 0.0).sum().item()
@@ -328,9 +326,68 @@ class AdversarialAE(nn.Module):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        z = torch.randn(batch_size, self.z_dim)
+
+        z_samples = torch.randn(batch_size, self.z_dim, device=self.device)
+        x = self.decoder(z_samples)
+
+        mode = "categorical"
+        if mode == "argmax":
+            imgs = torch.argmax(x, dim=1, keepdim=True)
+        elif mode == "categorical":
+            probs = torch.softmax(x, dim=1)
+            # Create empty image
+            imgs = torch.zeros(x.shape[0], 1, x.shape[2], x.shape[3], dtype=torch.long, device=self.device)
+            # Generation loop
+            img_shape = imgs.shape
+            for h in range(img_shape[2]):
+                for w in range(img_shape[3]):
+                    imgs[:,0,h,w] = torch.multinomial(probs[:,:,h,w] , num_samples=1).squeeze(dim=-1)
+        x = imgs
+
+        #TODO is it necessary to convert to float?
+        x = x.float()
+
+        #TODO remove old code
+        """z = torch.randn(batch_size, self.z_dim)
         x = self.decoder(z)
-        x = torch.argmax(x, dim=1, keepdim=True)
+        probs = torch.softmax(x, dim=1)
+
+        # The following is based on the tutorial 12 by Phillip Lippe
+        # Create empty image
+        imgs = torch.zeros_like(x, dtype=torch.long)
+        # Generation loop
+        img_shape = imgs.shape
+        for h in range(img_shape[2]):
+            for w in range(img_shape[3]):
+                for c in range(img_shape[1]):
+                    # Skip if not to be filled (-1)
+                    if (imgs[:,c,h,w] != -1).all().item():
+                        continue
+                    # For efficiency, we only have to input the upper part of the image
+                    # as all other parts will be skipped by the masked convolutions anyways
+                    imgs[:,c,h,w] = torch.multinomial(probs, num_samples=1).squeeze(dim=-1)
+        return imgs
+
+        pred = self.forward(imgs[:,:,:h+1,:])
+        probs = F.softmax(pred[:,:,c,h,w], dim=-1)
+        imgs[:,c,h,w] = torch.multinomial(probs, num_samples=1).squeeze(dim=-1)
+
+        x = torch.multinomial(x, num_samples=1)#.view(x.shape[0], x.shape[2], x.shape[3])
+        #x = torch.argmax(x, dim=1, keepdim=True) #TODO which version to use? Argmax vs. mutlimodel sampling
+        #x = torch.multinomial(x,1, replacement=True)
+        #x = torch.multinomial(x, num_samples=1)#.view(x.shape, m)"""
+
+        """mu_d = x[0]
+        # and save shapes (we will need that for reshaping). 
+        b = mu_d.shape[0]
+        m = mu_d.shape[1]
+        # Here we use reshaping
+        mu_d = mu_d.view(mu_d.shape[0], -1, 16)
+        p = mu_d.view(-1, 16)
+        # Eventually, we sample from the categorical (the built-in PyTorch function).
+        x_new = torch.multinomial(p, num_samples=1).view(b, m)"""
+
+        
         
         #######################
         # END OF YOUR CODE    #

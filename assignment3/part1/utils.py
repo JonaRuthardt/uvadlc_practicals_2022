@@ -128,14 +128,22 @@ def visualize_manifold(decoder, grid_size=20):
 
     samples = torch.distributions.Normal(0, 1).icdf(torch.stack(grid, dim=-1).reshape(-1, 2)) #TODO check if this is correct
 
-    prediction = decoder(samples)
-    prediction = torch.softmax(prediction, dim=-1)
-    #TODO do it this way? https://piazza.com/class/l8vanaiu2bh1rg/post/226
-    # sample the pixels of the image from a categorical distribution whose parameters are given by the output of the decoder (after applying the softmax).
-    # use torch.multinomial to sample from a categorical distribution.
-    # prediction = torch.multinomial(prediction, num_samples=1, replacement=True)
+    x = decoder(samples)
 
-    img_grid = make_grid(prediction, nrow=grid_size)
+    mode = "categorical"
+    if mode == "argmax":
+        imgs = torch.argmax(x, dim=1, keepdim=True)
+    elif mode == "categorical":
+        probs = torch.softmax(x, dim=1)
+        # Create empty image
+        imgs = torch.zeros(x.shape[0], 1, x.shape[2], x.shape[3], dtype=torch.long)
+        # Generation loop
+        img_shape = imgs.shape
+        for h in range(img_shape[2]):
+            for w in range(img_shape[3]):
+                imgs[:,0,h,w] = torch.multinomial(probs[:,:,h,w] , num_samples=1).squeeze(dim=-1)
+
+    img_grid = make_grid(imgs, nrow=grid_size)
     
     #######################
     # END OF YOUR CODE    #

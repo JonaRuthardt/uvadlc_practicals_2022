@@ -101,9 +101,15 @@ def train_aae(epoch, model, train_loader,
         # PUT YOUR CODE HERE  #
         #######################
         # Encoder-Decoder update
+
+        # Seperate loss for autoencoder and discriminator
+        # loss_ae, loss_disc = 
+
+        #TODO verify if this is correct
         
         recon_x, z = model(x)
-        ae_loss = model.loss_function(x, recon_x)
+        ae_loss, loggin_dict = model.get_loss_autoencoder(x, recon_x, z, lambda_)
+        ae_loss = loggin_dict["recon_loss"] #TODO: Check if this is correct
 
         optimizer_ae.zero_grad()
         ae_loss.backward()
@@ -120,7 +126,7 @@ def train_aae(epoch, model, train_loader,
 
         #TODO: Check if this is correct
         optimizer_disc.zero_grad()
-        disc_loss = model.loss_function_discriminator(z)
+        disc_loss, logging_dict = model.get_loss_discriminator(z)
         disc_loss.backward()
         optimizer_disc.step()
 
