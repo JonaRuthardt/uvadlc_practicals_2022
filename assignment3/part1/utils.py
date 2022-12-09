@@ -62,8 +62,6 @@ def KLD(mean, log_std):
     #######################
     
     KLD = 0.5 * torch.sum(torch.exp(2 * log_std) + mean**2 - 1 - 2 * log_std, dim=-1)
-
-    #KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) #TODO remove when done
     
     #######################
     # END OF YOUR CODE    #
@@ -136,14 +134,14 @@ def visualize_manifold(decoder, grid_size=20):
     elif mode == "categorical":
         probs = torch.softmax(x, dim=1)
         # Create empty image
-        imgs = torch.zeros(x.shape[0], 1, x.shape[2], x.shape[3], dtype=torch.long)
+        imgs = torch.zeros(x.shape[0], 1, x.shape[2], x.shape[3], dtype=torch.long, device=x.device)
         # Generation loop
         img_shape = imgs.shape
         for h in range(img_shape[2]):
             for w in range(img_shape[3]):
                 imgs[:,0,h,w] = torch.multinomial(probs[:,:,h,w] , num_samples=1).squeeze(dim=-1)
 
-    img_grid = make_grid(imgs, nrow=grid_size)
+    img_grid = make_grid(imgs, nrow=grid_size).float()
     
     #######################
     # END OF YOUR CODE    #
