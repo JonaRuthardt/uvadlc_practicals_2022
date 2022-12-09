@@ -257,13 +257,18 @@ class AdversarialAE(nn.Module):
 
         MSE_loss = nn.MSELoss()
         reconstruction_loss = MSE_loss(x, recon_x)
-        gen_loss, logging_dict_gen = self.get_loss_discriminator(z_fake) #TODO: check if this is correct (because generator is something else?)
+
+        z_real = torch.randn_like(z_fake, device=self.device)
+        x_real = self.decoder(z_real)
+        x_fake = self.decoder(z_fake)
+        
+        gen_loss = nn.BCEWithLogitsLoss()(x_fake, x_real)
+        # gen_loss, logging_dict_gen = self.get_loss_discriminator(z_fake) #TODO: check if this is correct (because generator is something else?)
         ae_loss = lambda_ * reconstruction_loss + (1 - lambda_) * gen_loss
         
         logging_dict = {"gen_loss": gen_loss,
                         "recon_loss": reconstruction_loss,
                         "ae_loss": ae_loss,
-                        "logging_dict_gen": logging_dict_gen,
                         }
         
         #######################
@@ -293,7 +298,8 @@ class AdversarialAE(nn.Module):
         pred_fake = self.discriminator(z_fake)
         pred_real = self.discriminator(z_real)
 
-        loss_fake = nn.BCEWithLogitsLoss()(pred_fake, torch.zeros_like(pred_fake, device=self.device))
+        # loss_fake = nn.BCEWithLogitsLoss()(pred_fake, torch.zeros_like(pred_fake, device=self.device))
+        loss_fake = nn.BCEWithLogitsLoss()(pred_fake, -1 * torch.ones_like(pred_fake, device=self.device))
         loss_real = nn.BCEWithLogitsLoss()(pred_real, torch.ones_like(pred_real, device=self.device))
 
         disc_loss = (loss_fake + loss_real) / 2
