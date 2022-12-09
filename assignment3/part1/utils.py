@@ -62,7 +62,7 @@ def KLD(mean, log_std):
     #######################
     
     KLD = 0.5 * torch.sum(torch.exp(2 * log_std) + mean**2 - 1 - 2 * log_std, dim=-1)
-    
+
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -82,12 +82,7 @@ def elbo_to_bpd(elbo, img_shape):
     # PUT YOUR CODE HERE  #
     #######################
     
-    # print(elbo.size())
-    elbo = torch.sum(elbo)
-    #elbo = torch.mean(elbo) #TODO mean or sum?
-    bpd = elbo * np.log2(np.e) / np.prod(img_shape)
-
-
+    bpd = elbo * np.log2(np.e) / np.prod(img_shape[1:])
     
     #######################
     # END OF YOUR CODE    #
@@ -124,7 +119,7 @@ def visualize_manifold(decoder, grid_size=20):
     #grid_values = torch.tensor([0.5 * i / grid_size for i in range(1, grid_size+1)])
     grid = torch.meshgrid(grid_values, grid_values)
 
-    samples = torch.distributions.Normal(0, 1).icdf(torch.stack(grid, dim=-1).reshape(-1, 2)) #TODO check if this is correct
+    samples = torch.distributions.Normal(0, 1).icdf(torch.stack(grid, dim=-1).reshape(-1, 2))
 
     x = decoder(samples)
 
