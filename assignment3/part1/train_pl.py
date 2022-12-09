@@ -76,21 +76,15 @@ class VAE(pl.LightningModule):
         reconstruction = self.decoder(z)
 
         # Pytorch implementation of reconstruction term
-        #L_rec = nn.functional.cross_entropy(reconstruction, torch.squeeze(imgs, dim=1), reduction='sum') / imgs.shape[0]
-        L_rec = nn.functional.cross_entropy(reconstruction, torch.squeeze(imgs, dim=1), reduction='none')
-        L_rec = torch.sum(L_rec, dim=(1,2))
-        L_rec = torch.sum(L_rec) / imgs.shape[0] #TODO check if this is correct
-        # print(L_rec.shape)
+        L_rec = nn.functional.cross_entropy(reconstruction, torch.squeeze(imgs, dim=1), reduction='sum') / imgs.shape[0]
+
         
         L_reg = KLD(mean, log_std)
-        L_reg = torch.mean(L_reg)
-        #print(L_reg.shape)
+        L_reg = torch.sum(L_reg) / imgs.shape[0]
 
         L = L_rec + L_reg
 
-        L *= imgs.shape[0] #BUG this is required to pass unit test but seems wrong
         bpd = elbo_to_bpd(L, imgs.shape)
-        #loss = nn.functional.cross_entropy(reconstruction, imgs, reduction='none')
 
         #######################
         # END OF YOUR CODE    #

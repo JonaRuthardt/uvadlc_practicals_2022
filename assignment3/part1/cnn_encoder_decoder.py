@@ -54,7 +54,6 @@ class CNNEncoder(nn.Module):
             nn.Conv2d(2*c_hid, 2*c_hid, kernel_size=3, padding=1, stride=2), # 8x8 => 4x4
             act_fn(),
             nn.Flatten(), # Image grid to single feature vector
-            # nn.Linear(2*16*c_hid, (2, z_dim)) #TODO is this correct to have two dimensions for mean and std?
         )
         self.mu = nn.Linear(2*16*c_hid, z_dim)
         self.log_std = nn.Linear(2*16*c_hid, z_dim)
@@ -146,7 +145,7 @@ class CNNDecoder(nn.Module):
         #######################
         x = self.linear(z)
         x = x.reshape(x.shape[0], -1, 4, 4)
-        x = self.net(x) #TODO re-scaling required?
+        x = self.net(x)
         
         #######################
         # END OF YOUR CODE    #
